@@ -7,8 +7,6 @@ import (
 	"go-wms-poc/response"
 )
 
-// todo sku location pivot data in response
-
 func (h *Handler) FindSkus(ctx echo.Context) error {
 	var skus []*models.Sku
 	p := response.NewPagination(ctx)
@@ -17,9 +15,24 @@ func (h *Handler) FindSkus(ctx echo.Context) error {
 	return ctx.JSON(200, response.NewResponse(p, skus))
 }
 
-func (h *Handler) AssignSkuToLocation(ctx echo.Context) error {
+type AssignBody struct {
+	BinId    int `json:"bin_id" validate:"required,numeric"`
+	Quantity int `json:"quantity" validate:"required,numeric"`
+}
+
+func (h *Handler) AssignSkuToLocation(ctx echo.Context) (err error) {
 	var sku *models.Sku
 	var bin *models.Bin
+
+	reqBody := new(AssignBody)
+
+	if bindErr := ctx.Bind(&reqBody); bindErr != nil {
+		return bindErr
+	}
+
+	if err = ctx.Validate(reqBody); err != nil {
+		return err
+	}
 
 	// first verify the SKU exists
 	result := h.db.Debug().Find(&sku, ctx.Param("id"))
@@ -27,27 +40,16 @@ func (h *Handler) AssignSkuToLocation(ctx echo.Context) error {
 		return ctx.JSON(404, `{"message" : "SKU does not exist"}`)
 	}
 
-	input := struct {
-		BinId    int `json:"bin_id"`
-		Quantity int `json:"quantity"`
-	}{BinId: 0, Quantity: 0}
-
-	err := ctx.Bind(&input)
-	if err != nil {
-		return err
-	}
-
 	// then verify the destination BIN exists
-	result = h.db.Debug().Find(&bin, input.BinId)
+	result = h.db.Debug().Find(&bin, reqBody.BinId)
 	if result.RowsAffected < 1 {
 		return ctx.JSON(400, fmt.Sprintf(`{"message" : "%s"}`, "BIN does not exist"))
 	}
 
-	// todo create or update?
 	skuLocation := &models.SkuLocation{
 		SkuID:    int(sku.ID),
 		BinID:    int(sku.ID),
-		Quantity: input.Quantity,
+		Quantity: reqBody.Quantity,
 	}
 
 	result = h.db.Create(&skuLocation)
