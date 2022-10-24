@@ -28,6 +28,12 @@ var serveCmd = &cobra.Command{
 		route.GET("areas", h.FindAreas)
 		route.GET("areas/:id", h.FindAreaByID)
 
+		route.GET("bins", h.FindBins)
+		route.GET("bins/:id", h.FindABinByID)
+
+		route.GET("skus", h.FindSkus)
+		route.POST("skus/:id/assign", h.AssignSkuToLocation)
+
 		route.GET("/", func(c echo.Context) error {
 			return c.String(http.StatusOK, "wms in go!")
 		})
